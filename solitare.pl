@@ -10,8 +10,9 @@ my $deck = new Card;
 my %table;
 &deal_table();
 
-&flip_all_cards();
-1 while &move_aces();
+while ( &draw_hand ) {
+  while ( &move_aces() ) { &flip_all_cards() }
+}
 
 ### Subroutines
 
@@ -37,6 +38,7 @@ sub deal_table {
     my $card = $deck->draw();
     unshift @{$table{hand}}, $card;
   }
+  $table{discard} = [];
 }
 
 =head2 debug_table()
@@ -55,6 +57,25 @@ sub debug_table {
     print STDERR "Ace Stack : ", join(', ', @{$table{$ace}}), "\n";
   }
   print STDERR "In Hand : ", join(', ', @{$table{hand}}), "\n";
+  print STDERR "In Discard : ", join(', ', @{$table{discard}}), "\n";
+}
+
+=head2 draw_hand()
+
+Discards the current hand and draws three cards. Retruns the number of cards drawn
+
+=cut
+
+sub draw_hand {
+  while ( scalar(@{$table{hand}}) > 0 ) {
+    push @{$table{discard}}, shift @{$table{hand}};
+  }
+  for ( 1 .. 3 ) {
+    my $card = $deck->draw();
+    next unless $card;
+    unshift @{$table{hand}}, $card;
+  }
+  return scalar(@{$table{hand}});
 }
 
 =head2 flip_all_cards()
