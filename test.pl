@@ -1,4 +1,4 @@
-#!/usr/bin/perl -Ilib -I/Users/anthrocon/code/lib
+#!/usr/bin/perl -Ilib -I/Users/phil/lib
 
 use Term::Activity;
 use Card;
