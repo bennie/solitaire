@@ -3,15 +3,23 @@
 use Card;
 use strict;
 
-my $debug = 2;
+my $debug = 3;
 
-my $deck = new Card;
+my $deck = Card->new();
 
 my %table;
 &deal_table();
 
 while ( &draw_hand ) {
-  while ( &move_aces() ) { &flip_all_cards() }
+  my $count = 0;
+  while ( &move_aces()    ) { &flip_all_cards(); $count++; }
+  $count = 0 and &debug_table() if $count;
+  while ( &move_tableau() ) { &flip_all_cards(); $count++; }
+  $count = 0 and &debug_table() if $count;
+
+  while ( &play_card_in_hand() ) { &flip_all_cards(); &debug_table(); }
+
+  exit;
 }
 
 ### Subroutines
@@ -39,6 +47,9 @@ sub deal_table {
     unshift @{$table{hand}}, $card;
   }
   $table{discard} = [];
+
+  &flip_all_cards();
+  &debug_table() if $debug;
 }
 
 =head2 debug_table()
@@ -48,16 +59,16 @@ Displays the current standing of the table
 =cut
 
 sub debug_table {
-  return undef unless $debug > 2;
+  return undef unless $debug > 1;
+  print STDERR "\n";
   for my $col ( 1 .. 7 ) {
-    print STDERR "Hidden $col : ", join(',',  @{$table{$col}{hidden}}), "\n";
-    print STDERR "Showing $col : ", join(',',  @{$table{$col}{showing}}), "\n";
+    print STDERR "Tableau $col : ", join(',',  @{$table{$col}{showing}}), " (", join(',',  @{$table{$col}{hidden}}), ")\n";
   }
   for my $ace ( qw/AC AD AH AS/ ) {
-    print STDERR "Ace Stack : ", join(', ', @{$table{$ace}}), "\n";
+    print STDERR "Ace $ace : ", join(', ', @{$table{$ace}}), "\n";
   }
   print STDERR "In Hand : ", join(', ', @{$table{hand}}), "\n";
-  print STDERR "In Discard : ", join(', ', @{$table{discard}}), "\n";
+  print STDERR "In Discard : ", join(', ', @{$table{discard}}), "\n\n";
 }
 
 =head2 draw_hand()
@@ -75,6 +86,8 @@ sub draw_hand {
     next unless $card;
     unshift @{$table{hand}}, $card;
   }
+  print STDERR "Drawing cards\n" if $debug;
+
   return scalar(@{$table{hand}});
 }
 
@@ -120,6 +133,26 @@ sub need_aces {
   return wantarray ? %need: \%need;
 }
 
+sub need_tableau {
+  my $card = shift @_;
+  my ($value,$suit) = split '', $card, 2;
+
+  return [] if $value eq 'K';
+
+  my $newval = $value =~ /^[2-8]$/ ? $value + 1
+             : $value eq 'A' ? '2'
+             : $value eq '9' ? '0'
+             : $value eq '0' ? 'J'
+             : $value eq 'J' ? 'Q'
+             : $value eq 'Q' ? 'K'
+             : $value; # ERROR!
+  if ( $suit eq 'C' or $suit eq 'S' ) {
+    return [ $newval.'D', $newval.'H' ];
+  } elsif ( $suit eq 'D' or $suit eq 'H' ) { 
+    return [ $newval.'C', $newval.'S' ];
+  } else { die "Can't parse suit in &need_tableau()" }
+}
+
 =head2 move_aces() 
 
 Checks all currently showing cards and the hand to see if any of them 
@@ -148,5 +181,32 @@ sub move_aces {
     }
      
   }
+  print STDERR "No acestack cards to move.\n";
   return $count;
+}
+
+sub move_tableau {
+  for my $col ( 1 .. 7 ) {
+    next if scalar(@{$table{$col}{showing}}) < 1; 
+    my $card = $table{$col}{showing}->[-1];
+    my $test = &need_tableau($card);
+    for my $test_card ( @$test ) {
+      #print STDERR "$card on the top of the column $col needs $test_card\n";
+      for my $check_col ( 1 .. 7 ) {
+        next if $col == $check_col; # Don't appli this card to itself
+        next unless $test_card eq $table{$check_col}{showing}->[0];
+        print STDERR "Moving $card (needing $test_card) to $table{$check_col}{showing}->[0]?\n";
+        my @lift =  @{$table{$col}{showing}};
+        $table{$col}{showing} = [];
+        push @{$table{$check_col}{showing}}, @lift;
+        return 1;
+      }
+    }
+  }
+  print STDERR "No cards to move on the tableau\n";
+  return 0;
+}
+
+sub play_card_in_hand {
+  return 0;
 }
