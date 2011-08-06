@@ -17,9 +17,8 @@ while ( &draw_hand ) {
   while ( &move_tableau() ) { &flip_all_cards(); $count++; }
   $count = 0 and &debug_table() if $count;
 
-  while ( &play_card_in_hand() ) { &flip_all_cards(); &debug_table(); }
-
-  exit;
+  while ( &play_card_in_hand() ) { &flip_all_cards(); $count++; }
+  $count = 0 and &debug_table() if $count;
 }
 
 ### Subroutines
@@ -73,7 +72,7 @@ sub debug_table {
 
 =head2 draw_hand()
 
-Discards the current hand and draws three cards. Retruns the number of cards drawn
+Discards the current hand and draws three cards. Returns the number of cards drawn
 
 =cut
 
@@ -108,7 +107,7 @@ sub flip_all_cards {
 
 =head2 need_aces()
 
-Returns a hash or hasref keyed by the cards that are currently needed on 
+Returns a hash or hashref keyed by the cards that are currently needed on 
 the ace stacks. The value for that key is the stack on which it belongs.
 
 =cut
@@ -132,6 +131,13 @@ sub need_aces {
   print "Need Aces: ", join(', ', keys %need), "\n" if $debug > 2;
   return wantarray ? %need: \%need;
 }
+
+=head2 need_tableau()
+
+Given a card, returns an arrayref of the two cards it can sit upon on the 
+tableau.
+
+=cut
 
 sub need_tableau {
   my $card = shift @_;
@@ -195,7 +201,7 @@ sub move_tableau {
       for my $check_col ( 1 .. 7 ) {
         next if $col == $check_col; # Don't appli this card to itself
         next unless $test_card eq $table{$check_col}{showing}->[0];
-        print STDERR "Moving $card (needing $test_card) to $table{$check_col}{showing}->[0]?\n";
+        print STDERR "Moving tableau stack on $card (needing $test_card) to $table{$check_col}{showing}->[0].\n";
         my @lift =  @{$table{$col}{showing}};
         $table{$col}{showing} = [];
         push @{$table{$check_col}{showing}}, @lift;
@@ -208,5 +214,24 @@ sub move_tableau {
 }
 
 sub play_card_in_hand {
+  if ( scalar(@{$table{hand}}) < 1 ) {
+    print STDERR "Hand empty\n";
+    return 0;
+  }
+
+  my $handcard = $table{hand}->[0];
+  my $desired = &need_tableau($handcard);
+  for my $col ( 1 .. 7 ) {
+    next if scalar(@{$table{$col}{showing}}) < 1; 
+    my $card = $table{$col}{showing}->[0];
+    for my $desired_card ( @$desired ) {
+      next unless $card eq $desired_card;
+      print STDERR "Moving hand card $handcard (needing $desired_card) to $table{$col}{showing}->[0]?\n";      
+      my $lift = shift @{$table{hand}};
+      push @{$table{$col}{showing}}, $lift;
+      return 1;
+    }
+  }
+  print STDERR "No cards to move from the hand\n";
   return 0;
 }
