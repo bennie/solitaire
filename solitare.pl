@@ -1,5 +1,8 @@
 #!/usr/bin/perl -Ilib
 
+# need to make the first element of an array (0) to always be the top
+# of any stack as it might sit on the table
+
 use Card;
 use strict;
 
@@ -61,7 +64,8 @@ sub debug_table {
   return undef unless $debug > 1;
   print STDERR "\n";
   for my $col ( 1 .. 7 ) {
-    print STDERR "Tableau $col : ", join(',',  @{$table{$col}{showing}}), " (", join(',',  @{$table{$col}{hidden}}), ")\n";
+    print STDERR "Tableau $col : (", join(',',  @{$table{$col}{hidden}}), ") ",
+                 join(',',  @{$table{$col}{showing}}), "\n";
   }
   for my $ace ( qw/AC AD AH AS/ ) {
     print STDERR "Ace $ace : ", join(', ', @{$table{$ace}}), "\n";
@@ -199,10 +203,10 @@ sub move_tableau {
     for my $test_card ( @$test ) {
       #print STDERR "$card on the top of the column $col needs $test_card\n";
       for my $check_col ( 1 .. 7 ) {
-        next if $col == $check_col; # Don't appli this card to itself
+        next if $col == $check_col; # Don't apply this card to itself
         next unless $test_card eq $table{$check_col}{showing}->[0];
         print STDERR "Moving tableau stack on $card (needing $test_card) to $table{$check_col}{showing}->[0].\n";
-        my @lift =  @{$table{$col}{showing}};
+        my @lift = @{$table{$col}{showing}};
         $table{$col}{showing} = [];
         push @{$table{$check_col}{showing}}, @lift;
         return 1;
